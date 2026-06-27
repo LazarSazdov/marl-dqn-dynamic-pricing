@@ -147,13 +147,13 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments (anchored to repo root so src/airbnb_marl/env stays tracked)
 .env
 .envrc
 .venv
-env/
-venv/
-ENV/
+/env/
+/venv/
+/ENV/
 env.bak/
 venv.bak/
 
@@ -216,3 +216,25 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+
+
+
+
+
+
+# data files (root data/ only, src/airbnb_marl/data is code and stays tracked)
+/data/
+
+# Project outputs (regenerable)
+results/**
+!results/**/
+!results/**/.gitkeep
+runs/
+*.pt
+*.part
+
+# OS noise
+.DS_Store
+Thumbs.db
