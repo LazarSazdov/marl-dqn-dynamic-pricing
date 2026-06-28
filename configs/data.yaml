@@ -1,0 +1,53 @@
+# InsideAirbnb London data sources and preprocessing parameters.
+#
+# Booking label: a night open at t0 that is unavailable at t1 counts as
+# booked during the window. Two pairs from different seasons let the model
+# separate seasonality from booking lead time.
+
+base_url: "https://data.insideairbnb.com/united-kingdom/england/london"
+
+# Label pairs as [t0, t1].
+snapshot_pairs:
+  - ["2026-05-24", "2026-06-19"]   # primary, defines the simulated market
+  - ["2025-09-14", "2025-10-17"]   # autumn pair, same months at other leads
+
+primary_snapshot: "2026-06-19"
+
+# kind picks the URL segment: data or visualisations.
+# legacy marks a pre existing local file to move instead of downloading.
+files:
+  "2026-06-19":
+    - { name: listings.csv.gz, kind: data, legacy: listings_london.gz }
+    - { name: calendar.csv.gz, kind: data, legacy: calendar_london.gz }
+    - { name: reviews.csv.gz, kind: data, legacy: reviews_london.gz }
+    - { name: neighbourhoods.geojson, kind: visualisations }
+  "2026-05-24":
+    - { name: listings.csv.gz, kind: data }
+    - { name: calendar.csv.gz, kind: data }
+  "2025-10-17":
+    - { name: listings.csv.gz, kind: data }
+    - { name: calendar.csv.gz, kind: data }
+  "2025-09-14":
+    - { name: listings.csv.gz, kind: data }
+    - { name: calendar.csv.gz, kind: data }
+
+preprocessing:
+  # nearest competitors: same room_type, accommodates within the tolerance
+  k_competitors: 5
+  accommodates_tolerance: 1
+
+  # active listing filter: at least one review this many days before t1
+  active_review_window_days: 180
+
+  # price sanity bounds in GBP
+  price_min: 10.0
+  price_max_quantile: 0.99
+
+  # keep stay dates within this many days after the t1 scrape
+  max_lead_days: 180
+
+  # hotel and shared rooms are a tiny heterogeneous tail, dropped
+  room_types_keep: ["Entire home/apt", "Private room"]
+
+  # listings with fewer valid competitors than this are dropped
+  min_competitors: 3
