@@ -235,6 +235,11 @@ runs/
 *.pt
 *.part
 
+# small trained artifacts are shared through git on purpose
+!results/demand/mlp.pt
+!results/demand/meta.json
+!results/demand/metrics.json
+
 # OS noise
 .DS_Store
 Thumbs.db
