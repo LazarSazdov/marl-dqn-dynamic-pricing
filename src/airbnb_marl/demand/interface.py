@@ -29,18 +29,19 @@ class DemandModel:
         scaler_scale: np.ndarray,
         calibrator: IsotonicCalibrator | None = None,
         meta: dict | None = None,
-        price_elasticity_boost: float = 0.0,
+        price_penalty_beta: float = 0.0,
     ):
         self.model = model.eval()
         self.scaler_mean = np.asarray(scaler_mean, dtype=np.float64)
         self.scaler_scale = np.asarray(scaler_scale, dtype=np.float64)
         self.calibrator = calibrator
         self.meta = meta or {}
-        # Simulation side elasticity fix: multiply P by price_ratio^boost.
-        # Cross sectional prices understate causal price response, so the
-        # boost steepens it to a literature value while leaving P unchanged
-        # at price_ratio 1.
-        self.price_elasticity_boost = float(price_elasticity_boost)
+        # Simulation side elasticity fix: multiply P by exp(beta * (r - 1))
+        # where r is the price ratio and beta <= 0. Elasticity then grows
+        # with price like in logit demand, which gives a unique interior
+        # revenue peak, and P is unchanged at r = 1. Cross sectional prices
+        # understate the causal price response, this puts it back.
+        self.price_penalty_beta = float(price_penalty_beta)
 
     def predict_proba_features(
         self, X: np.ndarray, apply_correction: bool = True
@@ -55,9 +56,9 @@ class DemandModel:
         probs = predict_mlp(self.model, X_std.astype(np.float32))
         if self.calibrator is not None:
             probs = self.calibrator(probs)
-        if apply_correction and self.price_elasticity_boost != 0.0:
+        if apply_correction and self.price_penalty_beta != 0.0:
             ratio = np.maximum(X[:, DEMAND_FEATURES.index("price_ratio")], 1e-6)
-            probs = probs * np.power(ratio, self.price_elasticity_boost)
+            probs = probs * np.exp(self.price_penalty_beta * (ratio - 1.0))
         return np.clip(probs, 0.0, 1.0)
 
     def predict_proba(self, raw: pd.DataFrame) -> np.ndarray:
@@ -76,7 +77,7 @@ class DemandModel:
             "scaler_mean": self.scaler_mean.tolist(),
             "scaler_scale": self.scaler_scale.tolist(),
             "calibrator": self.calibrator.to_dict() if self.calibrator else None,
-            "price_elasticity_boost": self.price_elasticity_boost,
+            "price_penalty_beta": self.price_penalty_beta,
         })
         with open(artifact_dir / "meta.json", "w", encoding="utf-8") as fh:
             json.dump(meta, fh, indent=2)
@@ -113,5 +114,5 @@ class DemandModel:
             np.asarray(meta["scaler_scale"]),
             calibrator,
             meta,
-            price_elasticity_boost=meta.get("price_elasticity_boost", 0.0),
+            price_penalty_beta=meta.get("price_penalty_beta", 0.0),
         )

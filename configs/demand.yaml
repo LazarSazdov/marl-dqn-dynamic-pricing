@@ -41,12 +41,17 @@ calibration:
   method: isotonic
   apply_if_ece_above: 0.03
 
-# Simulation side elasticity fix. If the raw revenue curve (ratio times P)
-# peaks at or above max_revenue_peak_ratio, the artifact gets
-# boost = target - measured elasticity at ratio 1, and the simulation uses
-# P(r) * r^boost. Target -1.5 sits in the usual lodging elasticity range.
+# Simulation side elasticity fix. Cross sectional prices understate the
+# causal price response. If the raw revenue curve (ratio times P) peaks
+# outside [min_revenue_peak_ratio, max_revenue_peak_ratio], the artifact
+# gets a beta chosen so the corrected curve P(r) * exp(beta * (r - 1)) has
+# its revenue peak at target_peak_ratio. The exp form makes elasticity grow
+# with price like in logit demand, so the peak is a real interior optimum.
+# A peak near 1 matches hosts already pricing close to their own revenue
+# optimum, which is where observed prices sit.
 elasticity:
-  target: -1.5
+  target_peak_ratio: 1.15
+  min_revenue_peak_ratio: 0.7
   max_revenue_peak_ratio: 2.0
 
 # Gates that must pass before the model is used as the RL world model.

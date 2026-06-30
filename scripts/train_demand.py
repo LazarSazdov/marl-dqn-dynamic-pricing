@@ -32,7 +32,6 @@ from airbnb_marl.demand.evaluate import (
     calibration_points,
     evaluate_probabilities,
     monotonicity_check,
-    sweep_price,
 )
 from airbnb_marl.demand.interface import DemandModel
 from airbnb_marl.demand.models import make_lightgbm, make_logistic_regression
@@ -184,24 +183,34 @@ def main() -> int:
         "revenue_peak_ratio": peak_raw,
     }
 
-    # steepen the simulation price response only if the raw revenue curve
-    # peaks at or above the configured boundary threshold
+    # correct the simulation price response only if the raw revenue curve
+    # peaks outside the accepted interior band
     ela = cfg["elasticity"]
-    if peak_raw >= ela["max_revenue_peak_ratio"]:
-        eps_grid = np.array([0.95, 1.05])
-        p_lo, p_hi = sweep_price(
-            demand_model.predict_proba_features, X_mono, cm_mono, eps_grid, DEMAND_FEATURES
-        )
-        measured = float(np.log(p_hi / p_lo) / np.log(eps_grid[1] / eps_grid[0]))
-        boost = min(0.0, float(ela["target"]) - measured)
-        demand_model.price_elasticity_boost = boost
+    ratios_grid = np.asarray(mono_raw["price_ratios"])
+    curve_grid = np.asarray(mono_raw["curve"])
+    peak_ok = ela["min_revenue_peak_ratio"] <= peak_raw <= ela["max_revenue_peak_ratio"]
+    if not peak_ok:
+        # grid search the beta that places the revenue peak at the target;
+        # the correction is a pure exp(beta * (r - 1)) factor so the raw
+        # curve can be rescaled in numpy without re-running the model
+        betas = np.linspace(-3.0, 0.0, 601)
+        peaks = np.array([
+            ratios_grid[np.argmax(
+                ratios_grid * curve_grid * np.exp(b * (ratios_grid - 1.0))
+            )]
+            for b in betas
+        ])
+        best = int(np.argmin(np.abs(peaks - ela["target_peak_ratio"])))
+        beta = float(betas[best])
+        demand_model.price_penalty_beta = beta
         log(
-            f"  revenue peak at boundary (ratio {peak_raw}), applying correction: "
-            f"measured elasticity {measured:.3f}, target {ela['target']}, boost {boost:.3f}"
+            f"  raw revenue peak at ratio {peak_raw}, applying beta {beta:.3f} "
+            f"to move the peak to ratio {peaks[best]} "
+            f"(target {ela['target_peak_ratio']})"
         )
         metrics["elasticity_correction"] = {
-            "applied": True, "measured_at_ratio_1": measured,
-            "target": ela["target"], "boost": boost,
+            "applied": True, "raw_peak_ratio": peak_raw,
+            "target_peak_ratio": ela["target_peak_ratio"], "boost": beta,
         }
     else:
         log(f"  revenue peak interior at ratio {peak_raw}, no correction needed")
@@ -222,8 +231,12 @@ def main() -> int:
         "price_monotonicity": {k: mono[k] for k in ("passed", "worst_increase", "tolerance")},
         "interior_revenue_peak": {
             "value": peak_final,
-            "required_below": ela["max_revenue_peak_ratio"],
-            "passed": bool(peak_final < ela["max_revenue_peak_ratio"]),
+            "required_between": [
+                ela["min_revenue_peak_ratio"], ela["max_revenue_peak_ratio"]
+            ],
+            "passed": bool(
+                ela["min_revenue_peak_ratio"] <= peak_final <= ela["max_revenue_peak_ratio"]
+            ),
         },
     }
     metrics["gates"] = gates

@@ -112,19 +112,20 @@ def test_elasticity_correction_steepens_and_roundtrips(tmp_path):
     boosted = DemandModel(
         model, np.zeros(len(DEMAND_FEATURES)), np.ones(len(DEMAND_FEATURES)),
         meta={"architecture": {"hidden_dims": [16, 8], "dropout": 0.0, "batch_norm": True}},
-        price_elasticity_boost=-1.0,
+        price_penalty_beta=-1.0,
     )
     p_plain = plain.predict_proba_features(X_hi)
     p_boosted = boosted.predict_proba_features(X_hi)
-    assert np.allclose(p_boosted, p_plain * 0.5, atol=1e-6)  # 2.0^-1 = 0.5
-    # uncorrected view must ignore the boost
+    # r = 2 and beta = -1 gives a factor exp(-1)
+    assert np.allclose(p_boosted, p_plain * np.exp(-1.0), atol=1e-6)
+    # uncorrected view must ignore the penalty
     assert np.allclose(
         boosted.predict_proba_features(X_hi, apply_correction=False), p_plain, atol=1e-6
     )
-    # boost survives save/load
+    # penalty survives save and load
     boosted.save(tmp_path / "boosted")
     loaded = DemandModel.load(tmp_path / "boosted")
-    assert loaded.price_elasticity_boost == -1.0
+    assert loaded.price_penalty_beta == -1.0
     assert np.allclose(loaded.predict_proba_features(X_hi), p_boosted, atol=1e-6)
 
 
