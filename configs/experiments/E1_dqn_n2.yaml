@@ -1,0 +1,41 @@
+# E1: primary collusion test, D3QN with 2 agents (hypothesis H1).
+experiment: E1
+algorithm: dqn
+n_agents: 2
+n_seeds: 20
+seed_base: 42
+total_steps: 500000
+
+# Westminster has the densest comparable listings; concrete listing ids
+# are resolved from the processed data.
+market:
+  neighbourhood: Westminster
+  room_type: "Entire home/apt"
+
+env: {}   # inherits configs/env.yaml defaults
+
+inflation:
+  enabled: false
+  annual_rate: 0.0
+
+dqn:
+  gamma: 0.95
+  lr: 0.0005
+  batch_size: 256
+  buffer_size: 100000
+  learning_starts: 1000
+  train_every: 1
+  target_update_every: 500
+  epsilon_start: 1.0
+  epsilon_min: 0.05
+  epsilon_decay: 0.995        # multiplicative, per episode
+  hidden_dim: 128
+  dueling: true
+  double: true
+  prioritized_replay: false
+  bc_pretrain: true
+
+logging:
+  csv_every_steps: 1000
+  checkpoint_every_episodes: 100
+  tensorboard: false

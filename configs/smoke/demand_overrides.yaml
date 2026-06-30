@@ -1,0 +1,9 @@
+# Smoke overrides for demand-model training: quick local sanity run.
+# Usage: train_demand.py --override configs/smoke/demand_overrides.yaml
+lightgbm:
+  n_estimators: 50
+
+mlp:
+  hidden_dims: [32, 16]
+  max_epochs: 3
+  batch_size: 2048

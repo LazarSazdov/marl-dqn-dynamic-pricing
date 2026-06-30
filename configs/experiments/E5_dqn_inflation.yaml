@@ -1,0 +1,40 @@
+# E5: robustness, D3QN with 2 agents and a 10 percent yearly inflation shock
+# (Tinoco et al. 2025 replication).
+experiment: E5
+algorithm: dqn
+n_agents: 2
+n_seeds: 20
+seed_base: 42
+total_steps: 500000
+
+market:
+  neighbourhood: Westminster
+  room_type: "Entire home/apt"
+
+env: {}
+
+inflation:
+  enabled: true
+  annual_rate: 0.10   # demand model's reference prices drift up 10%/simulated year
+
+dqn:
+  gamma: 0.95
+  lr: 0.0005
+  batch_size: 256
+  buffer_size: 100000
+  learning_starts: 1000
+  train_every: 1
+  target_update_every: 500
+  epsilon_start: 1.0
+  epsilon_min: 0.05
+  epsilon_decay: 0.995
+  hidden_dim: 128
+  dueling: true
+  double: true
+  prioritized_replay: false
+  bc_pretrain: true
+
+logging:
+  csv_every_steps: 1000
+  checkpoint_every_episodes: 100
+  tensorboard: false

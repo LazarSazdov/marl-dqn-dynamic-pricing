@@ -1,0 +1,17 @@
+# Smoke overrides for any experiment config: tiny, fast, CPU-friendly.
+# Usage: train_rl.py --config configs/experiments/E1_dqn_n2.yaml --override configs/smoke/rl_overrides.yaml
+n_seeds: 2
+total_steps: 8000
+
+dqn:
+  buffer_size: 5000
+  learning_starts: 200
+  batch_size: 64
+
+ppo:
+  rollout_steps: 512
+  minibatch_size: 64
+
+logging:
+  csv_every_steps: 200
+  checkpoint_every_episodes: 10

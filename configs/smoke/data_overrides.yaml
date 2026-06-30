@@ -1,0 +1,4 @@
+# Smoke overrides for preprocessing: subsample listings for a fast pipeline test.
+# Usage: preprocess.py --override configs/smoke/data_overrides.yaml
+preprocessing:
+  sample_listings: 3000   # random subsample of active listings (seeded)

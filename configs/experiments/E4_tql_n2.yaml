@@ -1,0 +1,38 @@
+# E4: literature bridge, tabular Q-learning with 2 agents (Calvano et al. 2020).
+experiment: E4
+algorithm: tql
+n_agents: 2
+n_seeds: 20
+seed_base: 42
+total_steps: 500000
+
+market:
+  neighbourhood: Westminster
+  room_type: "Entire home/apt"
+
+env: {}
+
+inflation:
+  enabled: false
+  annual_rate: 0.0
+
+tql:
+  gamma: 0.95
+  alpha: 0.1
+  epsilon_start: 1.0
+  epsilon_min: 0.05
+  epsilon_decay: 0.995
+  # bins per observation dimension, kept coarse since the table size
+  # multiplies across dimensions
+  bins:
+    price_ratio: 8
+    market_dispersion: 4
+    market_trend: 4
+    occupancy: 4
+    season: 6        # day-of-year angle binned into 6 phase sectors
+    is_weekend: 2
+
+logging:
+  csv_every_steps: 1000
+  checkpoint_every_episodes: 100
+  tensorboard: false

@@ -1,0 +1,35 @@
+# E3: algorithm ablation, independent PPO with 2 agents (hypothesis H2).
+experiment: E3
+algorithm: ppo
+n_agents: 2
+n_seeds: 20
+seed_base: 42
+total_steps: 500000
+
+market:
+  neighbourhood: Westminster
+  room_type: "Entire home/apt"
+
+env: {}
+
+inflation:
+  enabled: false
+  annual_rate: 0.0
+
+ppo:
+  gamma: 0.95
+  lr: 0.0003
+  clip_range: 0.2
+  gae_lambda: 0.95
+  rollout_steps: 2048
+  minibatch_size: 256
+  update_epochs: 4
+  entropy_coef: 0.01
+  value_coef: 0.5
+  max_grad_norm: 0.5
+  hidden_dim: 128
+
+logging:
+  csv_every_steps: 1000
+  checkpoint_every_episodes: 100
+  tensorboard: false
