@@ -108,15 +108,46 @@ class PricingMarketEnv(ParallelEnv):
             return 1.0
         return float((1.0 + self.inflation_rate) ** (self.t / 365.0))
 
-    def _rival_stats(self) -> tuple[np.ndarray, np.ndarray]:
-        """Leave one out median and std of current prices, per agent."""
+    def _rival_stats(self, prices: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
+        """Leave one out median and std of prices, per agent."""
+        prices = self.prices if prices is None else prices
         medians = np.empty(self.n)
         stds = np.empty(self.n)
         for j in range(self.n):
-            others = np.delete(self.prices, j)
+            others = np.delete(prices, j)
             medians[j] = np.median(others)
             stds[j] = np.std(others)
         return medians, stds
+
+    def demand_probs(
+        self,
+        prices: np.ndarray,
+        day: int,
+        occupancy: np.ndarray | None = None,
+    ) -> np.ndarray:
+        """Booking probability per agent for a given price vector and day.
+
+        Pure function of its arguments, does not touch episode state. Used
+        by step() and by the Nash and monopoly bound solvers.
+        """
+        prices = np.asarray(prices, dtype=np.float64)
+        rival_median, rival_std = self._rival_stats(prices)
+        if occupancy is None:
+            occupancy = self._X_base[:, self._ix["hist_occupancy"]]
+        X = self._X_base.copy()
+        X[:, self._ix["price_ratio"]] = prices / np.maximum(rival_median, 1e-8)
+        X[:, self._ix["log_price"]] = np.log1p(prices)
+        X[:, self._ix["market_dispersion"]] = rival_std / np.maximum(rival_median, 1e-8)
+        X[:, self._ix["occupancy_recent"]] = occupancy
+        tf = self._temporal[day]
+        X[:, self._ix["sin_doy"]] = tf[0]
+        X[:, self._ix["cos_doy"]] = tf[1]
+        X[:, self._ix["sin_dow"]] = tf[2]
+        X[:, self._ix["cos_dow"]] = tf[3]
+        X[:, self._ix["is_weekend_night"]] = tf[4]
+        return np.asarray(
+            self.demand_model.predict_proba_features(X), dtype=np.float64
+        )
 
     def _observations(self) -> dict:
         rival_median, rival_std = self._rival_stats()
@@ -165,21 +196,10 @@ class PricingMarketEnv(ParallelEnv):
         self.prices = np.clip(proposed, lo, hi)
         self.boundary_hits += (proposed != self.prices).astype(np.int64)
 
-        # demand features from the prices everyone just posted
-        rival_median, rival_std = self._rival_stats()
-        X = self._X_base.copy()
-        X[:, self._ix["price_ratio"]] = self.prices / np.maximum(rival_median, 1e-8)
-        X[:, self._ix["log_price"]] = np.log1p(self.prices)
-        X[:, self._ix["market_dispersion"]] = rival_std / np.maximum(rival_median, 1e-8)
-        X[:, self._ix["occupancy_recent"]] = self._occ_history.mean(axis=1)
-        tf = self._temporal[self.t]
-        X[:, self._ix["sin_doy"]] = tf[0]
-        X[:, self._ix["cos_doy"]] = tf[1]
-        X[:, self._ix["sin_dow"]] = tf[2]
-        X[:, self._ix["cos_dow"]] = tf[3]
-        X[:, self._ix["is_weekend_night"]] = tf[4]
-
-        probs = np.asarray(self.demand_model.predict_proba_features(X), dtype=np.float64)
+        # demand from the prices everyone just posted
+        probs = self.demand_probs(
+            self.prices, self.t, self._occ_history.mean(axis=1)
+        )
         booked = self.rng.random(self.n) < probs
 
         if self.cfg.get("normalize_reward", True):

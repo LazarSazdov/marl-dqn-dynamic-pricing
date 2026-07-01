@@ -48,10 +48,6 @@ def main() -> int:
 
     cfg = load_config(args.config, overrides=args.override)
     env_cfg = load_config("configs/env.yaml", overrides=cfg.get("env") or {})
-    if cfg["algorithm"] != "dqn":
-        raise SystemExit(
-            f"algorithm {cfg['algorithm']} lands in phase 5, only dqn runs for now"
-        )
 
     artifact = args.artifact_dir or (results_dir() / "demand")
     demand_model = DemandModel.load(artifact)

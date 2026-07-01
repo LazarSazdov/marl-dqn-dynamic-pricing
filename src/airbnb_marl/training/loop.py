@@ -1,9 +1,11 @@
-"""Generic multi agent training loop for one experiment seed.
+"""Training loops for one experiment seed, all algorithms.
 
-Handles behavioral cloning pretraining, epsilon greedy exploration with per
-episode decay, target network syncs, per episode CSV metrics, checkpoints
-and resume. Episode truncation at the horizon is stored as done, standard
-DQN practice for time limited tasks.
+Every algorithm writes the same metrics.csv schema so evaluation and
+figures are uniform. After training, one greedy evaluation episode is
+recorded to eval_trace.npz (per step prices, actions, rewards, booking
+probabilities) for the trajectory and joint action figures. Episode
+truncation at the horizon is stored as done, standard practice for time
+limited tasks.
 """
 
 from __future__ import annotations
@@ -19,6 +21,8 @@ import torch.nn.functional as F
 
 from airbnb_marl.agents.anchor import anchor_action
 from airbnb_marl.agents.dqn import D3QNAgent
+from airbnb_marl.agents.ppo import PPOAgent
+from airbnb_marl.agents.tql import TQLAgent
 
 CSV_FIELDS = [
     "episode", "global_step", "epsilon", "mean_loss",
@@ -27,14 +31,53 @@ CSV_FIELDS = [
 ]
 
 
+class _EpisodeLogger:
+    def __init__(self, out_dir: Path, fresh: bool):
+        self.path = out_dir / "metrics.csv"
+        self.file = open(self.path, "w" if fresh else "a", newline="", encoding="utf-8")
+        self.writer = csv.DictWriter(self.file, fieldnames=CSV_FIELDS)
+        if fresh:
+            self.writer.writeheader()
+
+    def write(self, **row) -> None:
+        self.writer.writerow(row)
+        self.file.flush()
+
+    def close(self) -> None:
+        self.file.close()
+
+
+def _record_eval_trace(env, act_fn, out_dir: Path, seed: int) -> None:
+    """One greedy episode, per step arrays for figures."""
+    obs, _ = env.reset(seed=seed)
+    prices, actions_log, rewards_log, probs_log = [], [], [], []
+    while env.agents:
+        actions = {a: act_fn(a, obs[a]) for a in env.agents}
+        obs, rewards, _, _, infos = env.step(actions)
+        prices.append([infos[a]["price"] for a in env.possible_agents])
+        actions_log.append([actions[a] for a in env.possible_agents])
+        rewards_log.append([rewards[a] for a in env.possible_agents])
+        probs_log.append([infos[a]["booking_prob"] for a in env.possible_agents])
+    np.savez_compressed(
+        out_dir / "eval_trace.npz",
+        prices=np.asarray(prices),
+        actions=np.asarray(actions_log),
+        rewards=np.asarray(rewards_log),
+        booking_probs=np.asarray(probs_log),
+        cluster_median=env.cluster_median,
+        base_prices=env.base_prices,
+    )
+
+
+def _write_summary(out_dir: Path, **summary) -> dict:
+    with open(out_dir / "summary.json", "w", encoding="utf-8") as fh:
+        json.dump(summary, fh, indent=2)
+    return summary
+
+
 def pretrain_bc(agents: dict, env, epochs: int, rng: np.random.Generator,
                 episodes: int = 4, explore: float = 0.3, log=print) -> None:
-    """Clone the anchor policy into every agent network.
-
-    Rolls the environment under the anchor teacher with exploration noise,
-    then fits each network to the teacher actions with cross entropy on the
-    Q values used as logits.
-    """
+    """Clone the anchor policy into every DQN network."""
     states, labels = [], []
     for ep in range(episodes):
         obs, _ = env.reset(seed=int(rng.integers(1 << 31)))
@@ -75,20 +118,29 @@ def pretrain_bc(agents: dict, env, epochs: int, rng: np.random.Generator,
 
 def run_seed(cfg: dict, env, out_dir: Path, seed: int, log=print,
              resume: bool = True) -> dict:
-    """Train all agents in `env` for one seed. Returns a summary dict."""
+    algorithm = cfg["algorithm"]
     out_dir = Path(out_dir)
-    ckpt_dir = out_dir / "checkpoints"
-    ckpt_dir.mkdir(parents=True, exist_ok=True)
-    metrics_path = out_dir / "metrics.csv"
+    (out_dir / "checkpoints").mkdir(parents=True, exist_ok=True)
+    if algorithm == "dqn":
+        return _run_dqn(cfg, env, out_dir, seed, log, resume)
+    if algorithm == "tql":
+        return _run_tql(cfg, env, out_dir, seed, log)
+    if algorithm == "ppo":
+        return _run_ppo(cfg, env, out_dir, seed, log)
+    raise ValueError(f"unknown algorithm {algorithm}")
 
+
+def _run_dqn(cfg, env, out_dir, seed, log, resume) -> dict:
     algo_cfg = cfg["dqn"]
     rng = np.random.default_rng(seed)
     torch.manual_seed(seed)
+    ckpt = out_dir / "checkpoints" / "latest.pt"
 
     state_dim = env.observation_space(env.possible_agents[0]).shape[0]
     n_actions = env.action_space(env.possible_agents[0]).n
     agents = {
-        name: D3QNAgent(state_dim, n_actions, algo_cfg, np.random.default_rng(rng.integers(1 << 31)))
+        name: D3QNAgent(state_dim, n_actions, algo_cfg,
+                        np.random.default_rng(rng.integers(1 << 31)))
         for name in env.possible_agents
     }
 
@@ -97,9 +149,8 @@ def run_seed(cfg: dict, env, out_dir: Path, seed: int, log=print,
     start_episode = 0
     epsilon = float(algo_cfg["epsilon_start"])
 
-    latest = ckpt_dir / "latest.pt"
-    if resume and latest.exists():
-        payload = torch.load(latest, map_location="cpu", weights_only=False)
+    if resume and ckpt.exists():
+        payload = torch.load(ckpt, map_location="cpu", weights_only=False)
         for name, agent in agents.items():
             agent.load_state_dict(payload["agents"][name])
         start_episode = payload["episode"] + 1
@@ -109,23 +160,17 @@ def run_seed(cfg: dict, env, out_dir: Path, seed: int, log=print,
         log("  behavioral cloning pretrain (anchor policy)")
         pretrain_bc(agents, env, epochs=5, rng=rng, log=log)
 
-    write_header = not metrics_path.exists() or start_episode == 0
-    csv_file = open(metrics_path, "w" if start_episode == 0 else "a",
-                    newline="", encoding="utf-8")
-    writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
-    if write_header:
-        writer.writeheader()
-
+    logger = _EpisodeLogger(out_dir, fresh=start_episode == 0)
     global_step = start_episode * episode_length
     for episode in range(start_episode, n_episodes):
         t_start = time.time()
         obs, _ = env.reset(seed=int(rng.integers(1 << 31)))
-        ep_reward = 0.0
-        ep_prices, ep_ratios, ep_probs, losses = [], [], [], []
+        ep_reward, losses = 0.0, []
+        ep_prices, ep_ratios, ep_probs = [], [], []
 
         while env.agents:
             actions = {a: agents[a].act(obs[a], epsilon) for a in env.agents}
-            next_obs, rewards, terminations, truncations, infos = env.step(actions)
+            next_obs, rewards, _, _, infos = env.step(actions)
             done = not env.agents
             for a in agents:
                 agents[a].store(obs[a], actions[a], rewards[a], next_obs[a], done)
@@ -147,42 +192,147 @@ def run_seed(cfg: dict, env, out_dir: Path, seed: int, log=print,
             ep_probs.append(np.mean([i["booking_prob"] for i in infos.values()]))
             ep_ratios.append(float(np.mean(env.prices)) / env.cluster_median)
 
-        epsilon = max(
-            float(algo_cfg["epsilon_min"]),
-            epsilon * float(algo_cfg["epsilon_decay"]),
+        epsilon = max(float(algo_cfg["epsilon_min"]),
+                      epsilon * float(algo_cfg["epsilon_decay"]))
+        logger.write(
+            episode=episode, global_step=global_step, epsilon=round(epsilon, 4),
+            mean_loss=round(float(np.mean(losses)), 6) if losses else "",
+            reward_per_agent_step=round(ep_reward / (env.n * episode_length), 6),
+            mean_price=round(float(np.mean(ep_prices)), 2),
+            mean_price_ratio=round(float(np.mean(ep_ratios)), 4),
+            mean_booking_prob=round(float(np.mean(ep_probs)), 4),
+            boundary_hits=int(env.boundary_hits.sum()),
+            seconds=round(time.time() - t_start, 2),
         )
-
-        writer.writerow({
-            "episode": episode,
-            "global_step": global_step,
-            "epsilon": round(epsilon, 4),
-            "mean_loss": round(float(np.mean(losses)), 6) if losses else "",
-            "reward_per_agent_step": round(
-                ep_reward / (len(agents) * episode_length), 6
-            ),
-            "mean_price": round(float(np.mean(ep_prices)), 2),
-            "mean_price_ratio": round(float(np.mean(ep_ratios)), 4),
-            "mean_booking_prob": round(float(np.mean(ep_probs)), 4),
-            "boundary_hits": int(env.boundary_hits.sum()),
-            "seconds": round(time.time() - t_start, 2),
-        })
-        csv_file.flush()
-
         if (episode + 1) % cfg["logging"]["checkpoint_every_episodes"] == 0 \
                 or episode == n_episodes - 1:
             torch.save({
                 "agents": {a: agents[a].state_dict() for a in agents},
-                "episode": episode,
-                "epsilon": epsilon,
-            }, latest)
+                "episode": episode, "epsilon": epsilon,
+            }, ckpt)
+    logger.close()
 
-    csv_file.close()
-    summary = {
-        "seed": seed,
-        "episodes": n_episodes,
-        "total_steps": global_step,
-        "final_epsilon": epsilon,
+    _record_eval_trace(
+        env, lambda a, s: agents[a].act(s, epsilon=0.0), out_dir,
+        seed=int(rng.integers(1 << 31)),
+    )
+    return _write_summary(out_dir, seed=seed, algorithm="dqn",
+                          episodes=n_episodes, total_steps=global_step,
+                          final_epsilon=epsilon)
+
+
+def _run_tql(cfg, env, out_dir, seed, log) -> dict:
+    algo_cfg = cfg["tql"]
+    rng = np.random.default_rng(seed)
+    n_actions = env.action_space(env.possible_agents[0]).n
+    agents = {
+        name: TQLAgent(n_actions, algo_cfg,
+                       np.random.default_rng(rng.integers(1 << 31)))
+        for name in env.possible_agents
     }
-    with open(out_dir / "summary.json", "w", encoding="utf-8") as fh:
-        json.dump(summary, fh, indent=2)
-    return summary
+
+    episode_length = env.episode_length
+    n_episodes = max(1, int(np.ceil(cfg["total_steps"] / episode_length)))
+    epsilon = float(algo_cfg["epsilon_start"])
+    logger = _EpisodeLogger(out_dir, fresh=True)
+    global_step = 0
+
+    for episode in range(n_episodes):
+        t_start = time.time()
+        obs, _ = env.reset(seed=int(rng.integers(1 << 31)))
+        ep_reward, tds = 0.0, []
+        ep_prices, ep_ratios, ep_probs = [], [], []
+        while env.agents:
+            actions = {a: agents[a].act(obs[a], epsilon) for a in env.agents}
+            next_obs, rewards, _, _, infos = env.step(actions)
+            done = not env.agents
+            for a in agents:
+                tds.append(agents[a].update(obs[a], actions[a], rewards[a],
+                                            next_obs[a], done))
+            obs = next_obs
+            global_step += 1
+            ep_reward += sum(rewards.values())
+            ep_prices.append(np.mean([i["price"] for i in infos.values()]))
+            ep_probs.append(np.mean([i["booking_prob"] for i in infos.values()]))
+            ep_ratios.append(float(np.mean(env.prices)) / env.cluster_median)
+
+        epsilon = max(float(algo_cfg["epsilon_min"]),
+                      epsilon * float(algo_cfg["epsilon_decay"]))
+        logger.write(
+            episode=episode, global_step=global_step, epsilon=round(epsilon, 4),
+            mean_loss=round(float(np.mean(tds)), 6),
+            reward_per_agent_step=round(ep_reward / (env.n * episode_length), 6),
+            mean_price=round(float(np.mean(ep_prices)), 2),
+            mean_price_ratio=round(float(np.mean(ep_ratios)), 4),
+            mean_booking_prob=round(float(np.mean(ep_probs)), 4),
+            boundary_hits=int(env.boundary_hits.sum()),
+            seconds=round(time.time() - t_start, 2),
+        )
+    logger.close()
+
+    _record_eval_trace(env, lambda a, s: agents[a].act(s, epsilon=0.0),
+                       out_dir, seed=int(rng.integers(1 << 31)))
+    return _write_summary(out_dir, seed=seed, algorithm="tql",
+                          episodes=n_episodes, total_steps=global_step,
+                          final_epsilon=epsilon)
+
+
+def _run_ppo(cfg, env, out_dir, seed, log) -> dict:
+    algo_cfg = cfg["ppo"]
+    rng = np.random.default_rng(seed)
+    torch.manual_seed(seed)
+    state_dim = env.observation_space(env.possible_agents[0]).shape[0]
+    n_actions = env.action_space(env.possible_agents[0]).n
+    agents = {
+        name: PPOAgent(state_dim, n_actions, algo_cfg,
+                       np.random.default_rng(rng.integers(1 << 31)))
+        for name in env.possible_agents
+    }
+
+    episode_length = env.episode_length
+    n_episodes = max(1, int(np.ceil(cfg["total_steps"] / episode_length)))
+    logger = _EpisodeLogger(out_dir, fresh=True)
+    global_step = 0
+
+    for episode in range(n_episodes):
+        t_start = time.time()
+        obs, _ = env.reset(seed=int(rng.integers(1 << 31)))
+        ep_reward, losses = 0.0, []
+        ep_prices, ep_ratios, ep_probs = [], [], []
+        while env.agents:
+            actions = {a: agents[a].act(obs[a]) for a in env.agents}
+            next_obs, rewards, _, _, infos = env.step(actions)
+            done = not env.agents
+            for a in agents:
+                agents[a].store(obs[a], actions[a], rewards[a], done)
+                if agents[a].rollout_full():
+                    losses.append(agents[a].update(next_obs[a])["loss"])
+            obs = next_obs
+            global_step += 1
+            ep_reward += sum(rewards.values())
+            ep_prices.append(np.mean([i["price"] for i in infos.values()]))
+            ep_probs.append(np.mean([i["booking_prob"] for i in infos.values()]))
+            ep_ratios.append(float(np.mean(env.prices)) / env.cluster_median)
+
+        logger.write(
+            episode=episode, global_step=global_step, epsilon="",
+            mean_loss=round(float(np.mean(losses)), 6) if losses else "",
+            reward_per_agent_step=round(ep_reward / (env.n * episode_length), 6),
+            mean_price=round(float(np.mean(ep_prices)), 2),
+            mean_price_ratio=round(float(np.mean(ep_ratios)), 4),
+            mean_booking_prob=round(float(np.mean(ep_probs)), 4),
+            boundary_hits=int(env.boundary_hits.sum()),
+            seconds=round(time.time() - t_start, 2),
+        )
+    logger.close()
+
+    def greedy(agent_name, state):
+        with torch.no_grad():
+            logits, _ = agents[agent_name].net(
+                torch.from_numpy(np.asarray(state, dtype=np.float32)).unsqueeze(0)
+            )
+        return int(logits.argmax(dim=-1).item())
+
+    _record_eval_trace(env, greedy, out_dir, seed=int(rng.integers(1 << 31)))
+    return _write_summary(out_dir, seed=seed, algorithm="ppo",
+                          episodes=n_episodes, total_steps=global_step)
