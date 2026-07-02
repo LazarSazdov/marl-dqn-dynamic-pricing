@@ -50,7 +50,7 @@ def apply_style() -> None:
         "font.family": "sans-serif",
         "font.size": 10,
         "axes.titlesize": 11,
-        "axes.titleweight": "semibold",
+        "axes.titleweight": "bold",
         "axes.titlecolor": INK,
         "axes.labelsize": 10,
         "axes.labelcolor": INK_SECONDARY,
