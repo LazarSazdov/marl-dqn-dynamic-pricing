@@ -240,6 +240,15 @@ runs/
 !results/demand/meta.json
 !results/demand/metrics.json
 
+# experiment outputs are small and shared through git, checkpoints are not
+!results/experiments/**/metrics.csv
+!results/experiments/**/config.json
+!results/experiments/**/summary.json
+!results/experiments/**/eval_trace.npz
+!results/experiments/bounds_n*.json
+!results/evaluation/**/*.json
+!results/evaluation/**/*.csv
+
 # OS noise
 .DS_Store
 Thumbs.db

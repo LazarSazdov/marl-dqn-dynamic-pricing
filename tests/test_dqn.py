@@ -86,6 +86,7 @@ def test_bc_pretrain_matches_teacher():
 
 def test_run_seed_writes_metrics_checkpoint_and_resumes(tmp_path):
     cfg = {
+        "algorithm": "dqn",
         "total_steps": 3 * ENV_CFG["episode_length"],
         "dqn": DQN_CFG,
         "logging": {"checkpoint_every_episodes": 1},
