@@ -1,0 +1,52 @@
+{
+  "n_agents": 4,
+  "cluster_median": 202.03,
+  "nash_prices": [
+    505.0750000000006,
+    505.0750000000006,
+    505.0750000000006,
+    505.0750000000006
+  ],
+  "nash_price_ratios": [
+    2.5,
+    2.5,
+    2.5,
+    2.5
+  ],
+  "nash_profit_per_agent_step": 0.8829495494831285,
+  "monopoly_prices": [
+    277.7912500000003,
+    505.0750000000006,
+    505.0750000000006,
+    505.0750000000006
+  ],
+  "monopoly_price_ratios": [
+    1.375,
+    2.5,
+    2.5,
+    2.5
+  ],
+  "monopoly_profit_per_agent_step": 0.9947747712427911,
+  "n_days_sampled": 26,
+  "grid_step_ratio": 0.025,
+  "baselines": {
+    "random": {
+      "profit_per_agent_step": 0.3252159443142419,
+      "mean_price_ratio": 0.8982922452250135
+    },
+    "median_seeker": {
+      "profit_per_agent_step": 0.3951962328767123,
+      "mean_price_ratio": 1.0250674899767356
+    },
+    "anchor": {
+      "profit_per_agent_step": 0.41,
+      "mean_price_ratio": 1.0329282779785185
+    }
+  },
+  "market_listing_ids": [
+    35147750,
+    35152393,
+    35151803,
+    35152871
+  ]
+}
