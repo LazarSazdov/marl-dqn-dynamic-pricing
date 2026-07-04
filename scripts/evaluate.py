@@ -53,14 +53,22 @@ def main() -> int:
             continue
         bounds = json.loads(bounds_path.read_text())
 
+        episode_length = config["env"]["episode_length"]
+        expected_episodes = max(1, -(-config["experiment"]["total_steps"] // episode_length))
         for seed_dir in sorted(exp_dir.glob("seed_*")):
             metrics_csv = seed_dir / "metrics.csv"
             if not metrics_csv.exists():
+                continue
+            n_episodes = sum(1 for _ in open(metrics_csv)) - 1
+            if n_episodes < expected_episodes:
+                log(f"skipping {exp_dir.name}/{seed_dir.name}: incomplete run "
+                    f"({n_episodes}/{expected_episodes} episodes)")
                 continue
             result = run_delta(
                 metrics_csv,
                 bounds["nash_profit_per_agent_step"],
                 bounds["monopoly_profit_per_agent_step"],
+                trace_path=seed_dir / "eval_trace.npz",
             )
             rows.append({
                 "experiment": exp_dir.name,
@@ -79,8 +87,15 @@ def main() -> int:
     deltas.to_csv(out_dir / "deltas.csv", index=False)
     log(f"wrote deltas.csv ({len(deltas)} runs)")
 
+    MIN_SEEDS = 5  # below this the tests are meaningless, do not report them
+
     def exp_deltas(name: str) -> list[float]:
-        return deltas.loc[deltas["experiment"] == name, "delta"].tolist()
+        values = deltas.loc[deltas["experiment"] == name, "delta"].tolist()
+        if 0 < len(values) < MIN_SEEDS:
+            log(f"{name}: only {len(values)} seeds, hypothesis tests need "
+                f"at least {MIN_SEEDS}, skipping")
+            return []
+        return values
 
     summary: dict = {
         "per_experiment": {

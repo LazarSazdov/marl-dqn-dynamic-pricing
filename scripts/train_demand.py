@@ -69,6 +69,12 @@ def main() -> int:
     parts = {
         name: grp for name, grp in dataset.groupby("split")
     }
+    missing_splits = {"train", "val", "test"} - set(parts)
+    if missing_splits:
+        raise SystemExit(
+            f"splits missing from the (sub)sample: {sorted(missing_splits)}, "
+            "use a larger --sample-frac"
+        )
     X = {k: v[DEMAND_FEATURES].to_numpy(np.float32) for k, v in parts.items()}
     y = {k: v["booked"].to_numpy(np.int8) for k, v in parts.items()}
     comp_median = {k: v["competitor_median_price"].to_numpy(np.float64) for k, v in parts.items()}

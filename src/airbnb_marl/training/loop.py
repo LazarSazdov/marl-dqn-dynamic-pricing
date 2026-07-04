@@ -3,9 +3,9 @@
 Every algorithm writes the same metrics.csv schema so evaluation and
 figures are uniform. After training, one greedy evaluation episode is
 recorded to eval_trace.npz (per step prices, actions, rewards, booking
-probabilities) for the trajectory and joint action figures. Episode
-truncation at the horizon is stored as done, standard practice for time
-limited tasks.
+probabilities) for the trajectory and joint action figures. The horizon
+is a time limit rather than a terminal state, so stored transitions keep
+done False and targets bootstrap through the episode boundary.
 """
 
 from __future__ import annotations
@@ -136,11 +136,13 @@ def _run_dqn(cfg, env, out_dir, seed, log, resume) -> dict:
     torch.manual_seed(seed)
     ckpt = out_dir / "checkpoints" / "latest.pt"
 
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     state_dim = env.observation_space(env.possible_agents[0]).shape[0]
     n_actions = env.action_space(env.possible_agents[0]).n
     agents = {
         name: D3QNAgent(state_dim, n_actions, algo_cfg,
-                        np.random.default_rng(rng.integers(1 << 31)))
+                        np.random.default_rng(rng.integers(1 << 31)),
+                        device=device)
         for name in env.possible_agents
     }
 
@@ -171,9 +173,10 @@ def _run_dqn(cfg, env, out_dir, seed, log, resume) -> dict:
         while env.agents:
             actions = {a: agents[a].act(obs[a], epsilon) for a in env.agents}
             next_obs, rewards, _, _, infos = env.step(actions)
-            done = not env.agents
+            # the horizon is a time limit, not a terminal state, so targets
+            # bootstrap through it (stored done stays False)
             for a in agents:
-                agents[a].store(obs[a], actions[a], rewards[a], next_obs[a], done)
+                agents[a].store(obs[a], actions[a], rewards[a], next_obs[a], False)
             obs = next_obs
 
             if (global_step >= algo_cfg["learning_starts"]
@@ -245,10 +248,9 @@ def _run_tql(cfg, env, out_dir, seed, log) -> dict:
         while env.agents:
             actions = {a: agents[a].act(obs[a], epsilon) for a in env.agents}
             next_obs, rewards, _, _, infos = env.step(actions)
-            done = not env.agents
             for a in agents:
                 tds.append(agents[a].update(obs[a], actions[a], rewards[a],
-                                            next_obs[a], done))
+                                            next_obs[a], False))
             obs = next_obs
             global_step += 1
             ep_reward += sum(rewards.values())
@@ -283,9 +285,11 @@ def _run_ppo(cfg, env, out_dir, seed, log) -> dict:
     torch.manual_seed(seed)
     state_dim = env.observation_space(env.possible_agents[0]).shape[0]
     n_actions = env.action_space(env.possible_agents[0]).n
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     agents = {
         name: PPOAgent(state_dim, n_actions, algo_cfg,
-                       np.random.default_rng(rng.integers(1 << 31)))
+                       np.random.default_rng(rng.integers(1 << 31)),
+                       device=device)
         for name in env.possible_agents
     }
 
@@ -302,9 +306,8 @@ def _run_ppo(cfg, env, out_dir, seed, log) -> dict:
         while env.agents:
             actions = {a: agents[a].act(obs[a]) for a in env.agents}
             next_obs, rewards, _, _, infos = env.step(actions)
-            done = not env.agents
             for a in agents:
-                agents[a].store(obs[a], actions[a], rewards[a], done)
+                agents[a].store(obs[a], actions[a], rewards[a], False)
                 if agents[a].rollout_full():
                     losses.append(agents[a].update(next_obs[a])["loss"])
             obs = next_obs

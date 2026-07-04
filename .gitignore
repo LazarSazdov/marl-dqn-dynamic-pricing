@@ -249,6 +249,9 @@ runs/
 !results/evaluation/**/*.json
 !results/evaluation/**/*.csv
 
+# smoke test output never ships (this rule is last so it wins)
+results/experiments/SMOKE_TEST/
+
 # OS noise
 .DS_Store
 Thumbs.db

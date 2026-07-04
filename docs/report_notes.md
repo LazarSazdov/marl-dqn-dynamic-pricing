@@ -80,6 +80,28 @@ why, and where it lives in the code.
 - The demand model is frozen during RL; market feedback on demand levels
   beyond the price ratio channel is not modelled.
 - Occupancy in the bounds is fixed at historical levels; in the simulation
-  it evolves with bookings.
+  it evolves with bookings. The training data measures occupancy_recent as
+  unavailability at t0 (bookings plus blocks) while the simulation feeds
+  booked share only, a mild train versus simulation shift.
 - Independent Q learning is nonstationary by construction; results are
   reported over 20 seeds with distribution plots rather than single runs.
+- Episode ends are time limits, targets bootstrap through them (Pardo et
+  al. treatment for truncation).
+- The Profit Gain Index is reported two ways: from the last third of
+  training episodes (literature convention, includes epsilon 0.05
+  exploration and booking sampling noise) and from the greedy evaluation
+  episode's expected profit (delta_greedy, noise free).
+- The chronological split doubles as a lead time split (test holds only
+  leads over 152 days), so the simulation's reference lead of 30 days is
+  validated in sample only: empirical booking rate 0.258 versus predicted
+  0.255 on the lead 20 to 40 slice, ECE 0.036.
+- E5 (inflation) reuses the zero inflation bounds; under 10 percent yearly
+  inflation the demand model sees rising absolute prices, so E5's delta is
+  read as a within experiment comparison against E1 rather than an
+  absolute collusion level.
+- In 2 agent markets the rival median equals the single rival's price and
+  market dispersion is always zero, slightly outside the K equals 5
+  training distribution of those features.
+- DQN resume after a session reset restores networks, optimizer and
+  epsilon but not the replay buffer, so learning briefly re-fills the
+  buffer after a resume.

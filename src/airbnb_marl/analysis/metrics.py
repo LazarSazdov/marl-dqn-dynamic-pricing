@@ -23,18 +23,34 @@ def profit_gain_index(rl_profit: float, nash_profit: float,
 
 
 def run_delta(metrics_csv: str | Path, nash_profit: float,
-              monopoly_profit: float, last_frac: float = 1 / 3) -> dict:
-    """Delta for one training run, averaged over the last part of training
-    (exploration has decayed there)."""
+              monopoly_profit: float, last_frac: float = 1 / 3,
+              trace_path: str | Path | None = None) -> dict:
+    """Delta for one training run.
+
+    Primary delta averages the last part of training (exploration decayed,
+    matches how the literature reports profits). If a greedy evaluation
+    trace exists, a second delta is computed from the greedy policy's
+    EXPECTED profit (prices times booking probabilities, no exploration and
+    no Bernoulli noise) as a robustness column.
+    """
     df = pd.read_csv(metrics_csv)
     tail = df.iloc[int(len(df) * (1 - last_frac)):]
     rl_profit = float(tail["reward_per_agent_step"].mean())
-    return {
+    result = {
         "rl_profit_per_agent_step": rl_profit,
         "delta": profit_gain_index(rl_profit, nash_profit, monopoly_profit),
         "episodes_used": int(len(tail)),
         "mean_price_ratio": float(tail["mean_price_ratio"].mean()),
     }
+    if trace_path is not None and Path(trace_path).exists():
+        trace = np.load(trace_path)
+        expected = (trace["prices"] / trace["base_prices"]) * trace["booking_probs"]
+        greedy_profit = float(expected.mean())
+        result["greedy_profit_per_agent_step"] = greedy_profit
+        result["delta_greedy"] = profit_gain_index(
+            greedy_profit, nash_profit, monopoly_profit
+        )
+    return result
 
 
 def h1_collusion_test(deltas: list[float], threshold: float = 0.15) -> dict:

@@ -39,6 +39,7 @@ def make_lightgbm(cfg: dict):
         learning_rate=cfg["learning_rate"],
         n_estimators=cfg["n_estimators"],
         objective="binary",
+        random_state=42,
         verbosity=-1,
     )
 

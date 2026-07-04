@@ -119,8 +119,10 @@ def main() -> int:
                     failures.append(f"{snapshot}/{name}")
                     continue
             if not args.dry_run and name.endswith(".gz") and not gzip_ok(target):
-                print(f"  FAILED   {name}: gzip integrity check failed, removing")
-                target.unlink()
+                quarantined = target.with_suffix(target.suffix + ".corrupt")
+                target.rename(quarantined)
+                print(f"  FAILED   {name}: gzip integrity check failed, "
+                      f"kept as {quarantined.name}")
                 failures.append(f"{snapshot}/{name}")
 
     if failures:

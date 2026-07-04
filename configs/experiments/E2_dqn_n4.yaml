@@ -30,10 +30,7 @@ dqn:
   hidden_dim: 128
   dueling: true
   double: true
-  prioritized_replay: false
   bc_pretrain: true
 
 logging:
-  csv_every_steps: 1000
   checkpoint_every_episodes: 100
-  tensorboard: false

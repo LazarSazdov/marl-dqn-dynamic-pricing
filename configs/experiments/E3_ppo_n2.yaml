@@ -30,6 +30,4 @@ ppo:
   hidden_dim: 128
 
 logging:
-  csv_every_steps: 1000
   checkpoint_every_episodes: 100
-  tensorboard: false

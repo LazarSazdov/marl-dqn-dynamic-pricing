@@ -8,27 +8,32 @@ import torch.nn as nn
 
 
 class DuelingDQN(nn.Module):
-    """Q network with separate state value and action advantage streams."""
+    """Q network, optionally with value and advantage streams."""
 
-    def __init__(self, state_dim: int, n_actions: int, hidden_dim: int = 128):
+    def __init__(self, state_dim: int, n_actions: int, hidden_dim: int = 128,
+                 dueling: bool = True):
         super().__init__()
+        self.dueling = dueling
         self.features = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
         )
-        self.value = nn.Sequential(
-            nn.Linear(hidden_dim, 64), nn.ReLU(), nn.Linear(64, 1)
-        )
         self.advantage = nn.Sequential(
             nn.Linear(hidden_dim, 64), nn.ReLU(), nn.Linear(64, n_actions)
         )
+        if dueling:
+            self.value = nn.Sequential(
+                nn.Linear(hidden_dim, 64), nn.ReLU(), nn.Linear(64, 1)
+            )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = self.features(x)
-        value = self.value(h)
         adv = self.advantage(h)
+        if not self.dueling:
+            return adv
+        value = self.value(h)
         return value + adv - adv.mean(dim=-1, keepdim=True)
 
 
@@ -79,8 +84,9 @@ class D3QNAgent:
         self.gamma = float(cfg["gamma"])
 
         hidden = int(cfg["hidden_dim"])
-        self.online = DuelingDQN(state_dim, n_actions, hidden).to(device)
-        self.target = DuelingDQN(state_dim, n_actions, hidden).to(device)
+        dueling = bool(cfg.get("dueling", True))
+        self.online = DuelingDQN(state_dim, n_actions, hidden, dueling).to(device)
+        self.target = DuelingDQN(state_dim, n_actions, hidden, dueling).to(device)
         self.sync_target()
         self.optimizer = torch.optim.Adam(self.online.parameters(), lr=float(cfg["lr"]))
         self.loss_fn = nn.SmoothL1Loss()
