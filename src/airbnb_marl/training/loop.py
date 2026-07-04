@@ -95,12 +95,14 @@ def pretrain_bc(agents: dict, env, epochs: int, rng: np.random.Generator,
                 )
             obs, _, _, _, _ = env.step(actions)
 
-    X = torch.from_numpy(np.asarray(states, dtype=np.float32))
-    y = torch.from_numpy(np.asarray(labels, dtype=np.int64))
+    X_cpu = torch.from_numpy(np.asarray(states, dtype=np.float32))
+    y_cpu = torch.from_numpy(np.asarray(labels, dtype=np.int64))
     for name, agent in agents.items():
+        X = X_cpu.to(agent.device)
+        y = y_cpu.to(agent.device)
         optimizer = torch.optim.Adam(agent.online.parameters(), lr=1e-3)
         for epoch in range(epochs):
-            perm = torch.randperm(len(X))
+            perm = torch.randperm(len(X), device=agent.device)
             total = 0.0
             for start in range(0, len(perm), 512):
                 idx = perm[start : start + 512]
@@ -330,9 +332,11 @@ def _run_ppo(cfg, env, out_dir, seed, log) -> dict:
     logger.close()
 
     def greedy(agent_name, state):
+        agent = agents[agent_name]
         with torch.no_grad():
-            logits, _ = agents[agent_name].net(
-                torch.from_numpy(np.asarray(state, dtype=np.float32)).unsqueeze(0)
+            logits, _ = agent.net(
+                torch.from_numpy(np.asarray(state, dtype=np.float32))
+                .unsqueeze(0).to(agent.device)
             )
         return int(logits.argmax(dim=-1).item())
 
