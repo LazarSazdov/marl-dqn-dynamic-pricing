@@ -1,0 +1,7 @@
+{
+  "seed": 61,
+  "algorithm": "dqn",
+  "episodes": 1370,
+  "total_steps": 500050,
+  "final_epsilon": 0.05
+}
