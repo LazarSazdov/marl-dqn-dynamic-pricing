@@ -85,9 +85,16 @@ behavior and replaces the specified cloning of historical price changes,
 which the data cannot support.
 
 Both simulated markets are real: the densest compatible groups of
-Westminster listings. The 4-agent market is a co-located block run by
-one professional host, a direct instance of the multi-listing host
-concentration the specification highlights.
+Westminster listings. The 4-agent market is a co-located block of
+near-identical listings that one professional host runs in reality
+(host 43935156, 42 listings total), a direct instance of the
+multi-listing host concentration the specification highlights as de
+facto centralized price control. E2 is therefore deliberately
+counterfactual: it asks what would happen if such units were priced by
+four independent algorithms, the scenario that arises once ownership
+fragments and pricing tools are available to anyone. Agent independence
+is the experimental treatment probing the effect of competitor count,
+not a claim about the current owner.
 
 The Nash bound is computed by iterated best response to a fixed point; a
 single pass of best responses is not an equilibrium and understates Nash
@@ -98,7 +105,7 @@ agent step at ratios (1.075, 1.55); monopoly 0.4957 at ratios
 demand at the price cap while the other harvests it. Baselines sit below
 Nash: anchor 0.3153, random 0.2976, median seeker 0.2642.
 
-## Findings (final, 20 seeds per experiment, 100 runs)
+## Findings (final, 20 seeds per experiment, 120 runs)
 
 Profit Gain Index (delta, last third of training):
 
@@ -109,6 +116,7 @@ Profit Gain Index (delta, last third of training):
 | E3  | PPO, N=2       | +0.27     | 0.13 | 1.61             |
 | E4  | TQL, N=2       | -1.26     | 0.22 | 1.07             |
 | E5  | DQN, N=2, infl | -1.00     | 0.08 | 1.12             |
+| E6  | DQN, N=2, ablacija | -0.99 | 0.19 | 1.09           |
 
 Hypothesis tests (results/evaluation/summary.json):
 
@@ -131,7 +139,11 @@ near-perfect separation against the expectation (U = 0 and U = 10 of
 400 in the literature's direction). TQL barely improves on the anchor
 baseline (profit 0.327, ratio 1.07); 500k steps is far below the
 convergence horizon of the tabular literature. PPO is the only algorithm
-with positive delta.
+with positive delta. Under the strictly greedy projection, E3's
+supplementary delta_greedy falls to -0.15 (high variance, one evaluation
+episode per seed), which is disclosed in the report and read as
+confirmation of the mechanism: the stochastic policy itself sustains the
+market split, so removing the stochasticity breaks the coordination.
 
 The E3 result is the most notable finding. PPO pairs reach delta +0.27,
 above the threshold H1 set for collusion, and the mechanism is visible
