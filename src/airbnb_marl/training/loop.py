@@ -209,6 +209,10 @@ def _run_dqn(cfg, env, out_dir, seed, log, resume) -> dict:
             boundary_hits=int(env.boundary_hits.sum()),
             seconds=round(time.time() - t_start, 2),
         )
+        if (episode + 1) % 50 == 0 or episode == n_episodes - 1:
+            log(f"  episode {episode + 1}/{n_episodes} "
+                f"eps {epsilon:.3f} reward {ep_reward / (env.n * episode_length):.4f} "
+                f"ratio {float(np.mean(ep_ratios)):.3f}")
         if (episode + 1) % cfg["logging"]["checkpoint_every_episodes"] == 0 \
                 or episode == n_episodes - 1:
             torch.save({
@@ -272,6 +276,9 @@ def _run_tql(cfg, env, out_dir, seed, log) -> dict:
             boundary_hits=int(env.boundary_hits.sum()),
             seconds=round(time.time() - t_start, 2),
         )
+        if (episode + 1) % 50 == 0 or episode == n_episodes - 1:
+            log(f"  episode {episode + 1}/{n_episodes} "
+                f"eps {epsilon:.3f} reward {ep_reward / (env.n * episode_length):.4f}")
     logger.close()
 
     _record_eval_trace(env, lambda a, s: agents[a].act(s, epsilon=0.0),
@@ -329,6 +336,9 @@ def _run_ppo(cfg, env, out_dir, seed, log) -> dict:
             boundary_hits=int(env.boundary_hits.sum()),
             seconds=round(time.time() - t_start, 2),
         )
+        if (episode + 1) % 50 == 0 or episode == n_episodes - 1:
+            log(f"  episode {episode + 1}/{n_episodes} "
+                f"reward {ep_reward / (env.n * episode_length):.4f}")
     logger.close()
 
     def greedy(agent_name, state):
