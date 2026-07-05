@@ -1,0 +1,6 @@
+{
+  "seed": 52,
+  "algorithm": "ppo",
+  "episodes": 1370,
+  "total_steps": 500050
+}
