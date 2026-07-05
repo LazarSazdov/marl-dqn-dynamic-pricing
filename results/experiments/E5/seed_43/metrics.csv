@@ -1,4 +1,0 @@
-episode,global_step,epsilon,mean_loss,reward_per_agent_step,mean_price,mean_price_ratio,mean_booking_prob,boundary_hits,seconds
-0,365,0.995,,0.295035,263.47,0.8695,0.36,61,0.46
-1,730,0.99,,0.281323,369.84,1.2206,0.337,69,0.45
-2,1095,0.9851,0.960045,0.259884,282.03,0.9308,0.3309,43,1.53
