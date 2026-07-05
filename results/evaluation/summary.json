@@ -1,0 +1,71 @@
+{
+  "per_experiment": {
+    "E1": {
+      "n_runs": 20,
+      "mean_delta": -0.7674598896610725,
+      "std_delta": 0.07939255507236254,
+      "mean_price_ratio": 1.1097104266958424,
+      "mean_profit": 0.36434881947483594
+    },
+    "E2": {
+      "n_runs": 20,
+      "mean_delta": -1.2308017319421505,
+      "std_delta": 0.168548847106781,
+      "mean_price_ratio": 1.844082089715536,
+      "mean_profit": 0.7453148728665209
+    },
+    "E3": {
+      "n_runs": 20,
+      "mean_delta": 0.2654215846426481,
+      "std_delta": 0.13346472936943335,
+      "mean_price_ratio": 1.60968989059081,
+      "mean_profit": 0.4411044776805252
+    },
+    "E4": {
+      "n_runs": 20,
+      "mean_delta": -1.2637222655848042,
+      "std_delta": 0.21828789440126703,
+      "mean_price_ratio": 1.0748924288840265,
+      "mean_profit": 0.32747048807439827
+    },
+    "E5": {
+      "n_runs": 20,
+      "mean_delta": -1.0048154659880653,
+      "std_delta": 0.07911191591079449,
+      "mean_price_ratio": 1.121969102844639,
+      "mean_profit": 0.3467104128008753
+    }
+  },
+  "hypothesis_tests": {
+    "H1_dqn_collusion": {
+      "mean_delta": -0.7674598896610725,
+      "std_delta": 0.07939255507236254,
+      "n_runs": 20,
+      "threshold": 0.15,
+      "t_stat": -51.67997624063787,
+      "p_value": 1.0,
+      "rejected_h0": false
+    },
+    "H2_tql_gt_dqn": {
+      "mean_a": -1.2637222655848042,
+      "mean_b": -0.7674598896610725,
+      "u_stat": 10.0,
+      "p_value": 0.9999998718527068,
+      "significant": false
+    },
+    "H2_dqn_gt_ppo": {
+      "mean_a": -0.7674598896610725,
+      "mean_b": 0.2654215846426481,
+      "u_stat": 0.0,
+      "p_value": 0.9999999707854003,
+      "significant": false
+    },
+    "H3_n2_gt_n4": {
+      "mean_a": -0.7674598896610725,
+      "mean_b": -1.2308017319421505,
+      "u_stat": 399.0,
+      "p_value": 3.9490168333373314e-08,
+      "significant": true
+    }
+  }
+}

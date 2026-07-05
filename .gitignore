@@ -252,6 +252,12 @@ runs/
 # smoke test output never ships (this rule is last so it wins)
 results/experiments/SMOKE_TEST/
 
+
+# colab zips
+/from_colab_in_progress/
+
+
+
 # OS noise
 .DS_Store
 Thumbs.db
