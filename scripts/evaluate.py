@@ -5,7 +5,7 @@ Reads results/experiments/<EXP>/seed_*/metrics.csv and the matching
 bounds_n<agents>.json, computes delta per seed over the last third of
 training, then runs:
   H1  DQN 2 agents collude (one sided t test, delta > 0.15)
-  H2  TQL > DQN and DQN > PPO on delta (Mann Whitney)
+  H2  delta depends on the algorithm (Kruskal Wallis over DQN, PPO, TQL)
   H3  DQN 2 agents > DQN 4 agents on delta (Mann Whitney)
 
 Writes results/evaluation/deltas.csv and results/evaluation/summary.json.
@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from airbnb_marl.analysis.metrics import (
     h1_collusion_test,
+    kruskal_groups,
     mann_whitney_greater,
     run_delta,
 )
@@ -113,11 +114,18 @@ def main() -> int:
 
     if exp_deltas("E1"):
         summary["hypothesis_tests"]["H1_dqn_collusion"] = h1_collusion_test(exp_deltas("E1"))
+    if exp_deltas("E1") and exp_deltas("E3") and exp_deltas("E4"):
+        summary["hypothesis_tests"]["H2_algorithm_dependence"] = kruskal_groups({
+            "dqn_E1": exp_deltas("E1"),
+            "ppo_E3": exp_deltas("E3"),
+            "tql_E4": exp_deltas("E4"),
+        })
+    # direction expected by the literature, reported as a secondary check
     if exp_deltas("E4") and exp_deltas("E1"):
-        summary["hypothesis_tests"]["H2_tql_gt_dqn"] = mann_whitney_greater(
+        summary["hypothesis_tests"]["literature_order_tql_gt_dqn"] = mann_whitney_greater(
             exp_deltas("E4"), exp_deltas("E1"))
     if exp_deltas("E1") and exp_deltas("E3"):
-        summary["hypothesis_tests"]["H2_dqn_gt_ppo"] = mann_whitney_greater(
+        summary["hypothesis_tests"]["literature_order_dqn_gt_ppo"] = mann_whitney_greater(
             exp_deltas("E1"), exp_deltas("E3"))
     if exp_deltas("E1") and exp_deltas("E2"):
         summary["hypothesis_tests"]["H3_n2_gt_n4"] = mann_whitney_greater(

@@ -34,6 +34,13 @@
       "std_delta": 0.07911191591079449,
       "mean_price_ratio": 1.121969102844639,
       "mean_profit": 0.3467104128008753
+    },
+    "E6": {
+      "n_runs": 20,
+      "mean_delta": -0.9925838041443843,
+      "std_delta": 0.18873634900891825,
+      "mean_price_ratio": 1.0923354704595183,
+      "mean_profit": 0.34761937407002186
     }
   },
   "hypothesis_tests": {
@@ -46,14 +53,24 @@
       "p_value": 1.0,
       "rejected_h0": false
     },
-    "H2_tql_gt_dqn": {
+    "H2_algorithm_dependence": {
+      "group_means": {
+        "dqn_E1": -0.7674598896610725,
+        "ppo_E3": 0.2654215846426481,
+        "tql_E4": -1.2637222655848042
+      },
+      "h_stat": 51.18032786885246,
+      "p_value": 7.697204273009809e-12,
+      "significant": true
+    },
+    "literature_order_tql_gt_dqn": {
       "mean_a": -1.2637222655848042,
       "mean_b": -0.7674598896610725,
       "u_stat": 10.0,
       "p_value": 0.9999998718527068,
       "significant": false
     },
-    "H2_dqn_gt_ppo": {
+    "literature_order_dqn_gt_ppo": {
       "mean_a": -0.7674598896610725,
       "mean_b": 0.2654215846426481,
       "u_stat": 0.0,

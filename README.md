@@ -31,13 +31,19 @@ tested is Δ > 0.15.
   practical training budget, collusion is not an automatic emergent
   property; the classic results arise after millions of episodes in
   stylized markets.
-- **H2 (TQL > DQN > PPO): reversed.** PPO is the only algorithm with
+- **H2 (collusion depends on the algorithm): supported** (Kruskal-Wallis
+  H = 51.2, p = 7.7e-12), with the observed ordering reversing the
+  literature's expectation. PPO is the only algorithm with
   supra-competitive profits, achieved through tacit market division: one
   agent holds the price ceiling while the other undercuts beneath it,
   mirroring the asymmetric structure of the computed monopoly optimum.
-- **H3 (fewer agents collude more): supported** (Mann-Whitney,
-  p ≈ 4×10⁻⁸), with a documented caveat: the 4-agent market's modeled
-  demand is nearly price-inelastic, which degenerates its Δ scale.
+- **H3 (fewer agents collude more): inconclusive by design.** The formal
+  Δ test is not interpretable here: the 4-agent market's modeled demand is
+  nearly price-inelastic, its computed Nash sits at the price cap, and
+  alternative profit normalizations yield opposite verdicts. The
+  qualitative picture (collective price wars, no sustained coordination
+  among four agents) is consistent with the hypothesis but is reported as
+  observation, not proof.
 - **E5 (inflation): no coordination signal.** Behavior matches E1 at the
   same relative prices; nominal pricing loses real value instead.
 

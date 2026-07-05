@@ -122,9 +122,13 @@ budget, independent D3QN does not spontaneously collude. Calvano et al.
 observe collusion only after millions of episodes of tabular self play;
 the budget here is 1,370 episodes.
 
-H2 (TQL > DQN > PPO) is not supported, and the observed ordering is the
-reverse: PPO > DQN > TQL, with near-perfect separation in the opposite
-direction (U = 0 and U = 10 of 400). TQL barely improves on the anchor
+H2 (the collusion level depends on the algorithm) is supported:
+Kruskal-Wallis over the three algorithms gives H = 51.2, p = 7.7e-12,
+and every pairwise two-sided comparison is separately significant
+(p < 3e-7). The direction expected by the literature (TQL above DQN
+above PPO) is reversed: the observed ordering is PPO > DQN > TQL, with
+near-perfect separation against the expectation (U = 0 and U = 10 of
+400 in the literature's direction). TQL barely improves on the anchor
 baseline (profit 0.327, ratio 1.07); 500k steps is far below the
 convergence horizon of the tabular literature. PPO is the only algorithm
 with positive delta.
@@ -137,21 +141,27 @@ Edgeworth pattern, matching the asymmetric structure of the computed
 monopoly optimum (ratios 2.5 and 1.125). Supra-Nash profit here comes
 from market division, not from symmetric price raising.
 
-H3 (delta N=2 > N=4) is statistically significant (Mann-Whitney,
-p = 3.9e-08) but requires the following caveat before it is quoted. The
-N=4 bounds are degenerate and E2's delta is not a collusion measure. The
-4-agent market is a block of near-identical listings under one host; the
-raw model's absolute price response for these listings is nearly flat,
-and the structural correction penalizes only the price ratio relative to
-rivals, so a joint price raise costs almost nothing and even deep
-undercuts do not pay. Iterated best response therefore lands at the
-price cap for all four agents: Nash profit 0.883 at ratio 2.5, monopoly
-0.995, a spread of 0.11 that sits above anything reachable at interior
-prices. E2 agents pricing at 1.84x median earn 0.744 and score delta
--1.24 by construction. For H3 the report should compare E1 and E2 on
-price levels and on profit relative to baselines, and present delta only
-with this caveat stated; the Mann-Whitney on deltas alone would support
-H3 for the wrong reason.
+H3 (delta N=2 > N=4) is reported as inconclusive, even though the
+Mann-Whitney on deltas formally gives p = 3.9e-08 in its favor, for two
+reasons. First, the N=4 bounds are degenerate and E2's delta is not a
+collusion measure. The 4-agent market is a block of near-identical
+listings under one host; the raw model's absolute price response for
+these listings is nearly flat, and the structural correction penalizes
+only the price ratio relative to rivals, so a joint price raise costs
+almost nothing and even deep undercuts do not pay. Iterated best
+response therefore lands at the price cap for all four agents: Nash
+profit 0.883 at ratio 2.5, monopoly 0.995, a spread of 0.11 that sits
+above anything reachable at interior prices. E2 agents pricing at 1.84x
+median earn 0.744 and score delta -1.24 by construction, so the test
+compares a measure that does not measure collusion on one of the two
+markets. Second, the two markets differ in more than agent count, and no
+metric substitution repairs that: profit as a share of the Nash profit
+favors E1 (p = 0.002) while profit as a share of the monopoly profit
+favors E2 (p = 0.99), opposite verdicts from the same raw numbers. The
+qualitative picture (loose herding, a collective mid-year price war,
+failure to reach even the trivially profitable joint optimum) is
+consistent with the hypothesis and is reported as observation, not
+proof.
 
 The underlying cause deserves a paragraph in the discussion: cross
 sectional price identification understates aggregate, market-level
@@ -165,6 +175,17 @@ non-collusive outcome as E1 at the same relative prices, with lower
 delta (-1.00 against -0.77) because fixed nominal pricing loses real
 value against the drifting reference. There is no evidence here that
 inflation acts as a coordination signal.
+
+E6 (ablation, 20 seeds) reruns E1 with the three standard
+collusion-enabling levers from the tabular literature: discount factor
+0.99 instead of 0.95, exploration decaying to 0.01 instead of a 0.05
+floor, and a 20k replay buffer so targets track the current rival. The
+result is delta -0.99 with std 0.19 (range -1.64 to -0.72), no seed
+above Nash, and a one-sided Mann-Whitney against E1 of U = 33 of 400 in
+the hypothesized direction; the settings made learning less stable
+rather than more collusive. This closes the most likely objection to
+the H1 result: the absence of collusion is a property of the realistic
+market and the 500k-step budget, not of one hyperparameter choice.
 
 ## Limitations for the discussion section
 

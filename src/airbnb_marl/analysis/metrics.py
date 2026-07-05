@@ -69,6 +69,17 @@ def h1_collusion_test(deltas: list[float], threshold: float = 0.15) -> dict:
     }
 
 
+def kruskal_groups(groups: dict) -> dict:
+    """Kruskal Wallis test: do the groups come from one distribution?"""
+    stat, p_value = stats.kruskal(*groups.values())
+    return {
+        "group_means": {k: float(np.mean(v)) for k, v in groups.items()},
+        "h_stat": float(stat),
+        "p_value": float(p_value),
+        "significant": bool(p_value < 0.05),
+    }
+
+
 def mann_whitney_greater(a: list[float], b: list[float]) -> dict:
     """One sided Mann Whitney U: are values in a greater than in b?"""
     stat, p_value = stats.mannwhitneyu(a, b, alternative="greater")

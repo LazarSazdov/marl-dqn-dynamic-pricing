@@ -47,7 +47,7 @@ def test_env_config_loads():
 def test_all_experiment_configs_load_with_smoke_overrides():
     experiment_dir = configs_dir() / "experiments"
     paths = sorted(experiment_dir.glob("*.yaml"))
-    assert len(paths) == 5
+    assert len(paths) == 6
     for path in paths:
         cfg = load_config(path, overrides="configs/smoke/rl_overrides.yaml")
         assert cfg.algorithm in {"dqn", "tql", "ppo"}
