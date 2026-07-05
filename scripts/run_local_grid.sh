@@ -5,6 +5,9 @@
 # Usage (from anywhere, after git pull):
 #     bash scripts/run_local_grid.sh E1_dqn_n2 "Milan Sazdov" milansazdov@gmail.com
 # Identity args are optional if git config user.name and user.email are set.
+# Optional args 4 and 5 limit the seed range (default 42 61), for splitting
+# one experiment across machines:
+#     bash scripts/run_local_grid.sh E1_dqn_n2 "" "" 50 61
 # Progress: tail -f logs_<EXP>/seed_42.log
 # Safe to rerun anytime: completed seeds are skipped, interrupted ones resume.
 cd "$(dirname "$0")/.." || exit 1
@@ -12,6 +15,8 @@ cd "$(dirname "$0")/.." || exit 1
 CONFIG_NAME=${1:?usage: run_local_grid.sh <config name, e.g. E1_dqn_n2> [git name] [git email]}
 GIT_NAME=${2:-$(git config user.name)}
 GIT_EMAIL=${3:-$(git config user.email)}
+SEED_FROM=${4:-42}
+SEED_TO=${5:-61}
 CFG=configs/experiments/$CONFIG_NAME.yaml
 [ -f "$CFG" ] || { echo "no such config: $CFG"; exit 1; }
 [ -n "$GIT_NAME" ] && [ -n "$GIT_EMAIL" ] || { echo "git identity unknown, pass name and email as arguments"; exit 1; }
@@ -63,7 +68,8 @@ push_seed() {
 
 declare -A running=()
 active=0
-seeds=$(seq 42 61)
+seeds=$(seq "$SEED_FROM" "$SEED_TO")
+total=$(echo $seeds | wc -w)
 queue=""
 for s in $seeds; do
     if [ -f "$EXP/seed_$s/summary.json" ]; then
@@ -73,7 +79,7 @@ for s in $seeds; do
     fi
 done
 
-echo "== $CONFIG_NAME: $PARALLEL workers ($CORES cores, ${AVAIL_GB}GB free), queue:$queue =="
+echo "== $CONFIG_NAME: $PARALLEL workers ($PHYS cores, ${AVAIL_GB}GB free), queue:$queue =="
 while [ -n "$queue" ] || [ "$active" -gt 0 ]; do
     while [ -n "$queue" ] && [ "$active" -lt "$PARALLEL" ]; do
         s=$(echo $queue | cut -d' ' -f1)
@@ -104,5 +110,5 @@ done_count=0
 for s in $seeds; do
     [ -f "$EXP/seed_$s/summary.json" ] && done_count=$((done_count + 1))
 done
-echo "finished: $done_count/20 seeds of $EXP_ID have complete results"
-[ "$done_count" -eq 20 ] && echo "ALL DONE" || echo "rerun this script to retry the missing seeds"
+echo "finished: $done_count/$total seeds of $EXP_ID have complete results"
+[ "$done_count" -eq "$total" ] && echo "ALL DONE" || echo "rerun this script to retry the missing seeds"
